@@ -39,6 +39,7 @@ export default {
   watch: {
     isPlaying(value) {
       this.clear();
+      this.board.forceStop();
       if (value) {
         this.resetSnake();
         this.move();
@@ -53,6 +54,7 @@ export default {
           y: this.getMiddleCell(),
         },
       ];
+      console.log(this.snake);
       const randomDirectionIndex = Math.floor(Math.random() * 4);
       this.direction = constants[randomDirectionIndex];
       this.targetCell = null;
@@ -77,7 +79,7 @@ export default {
         this.isCellOutOfBoard(newHeadCell) ||
         this.amountCellsInSnake(this.snake[0]) > 1
       ) {
-        this.stop();
+        this.forceStop();
         alert(`Game over! You've scored ${this.scores} points.`);
       }
 

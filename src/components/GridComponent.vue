@@ -124,6 +124,12 @@ export default {
     } catch (error) {
       console.log(error);
     }
+    // eslint-disable-next-line no-undef
+    let socket = io("http://localhost:3000");
+    socket.onmessage = function () {
+      console.log("juao");
+    };
+    socket.send("joao", "sas");
   },
   mounted() {
     board = new MapGrid(

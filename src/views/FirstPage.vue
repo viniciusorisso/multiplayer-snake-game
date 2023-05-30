@@ -22,10 +22,7 @@
       :isPlaying="isPlaying"
       :stop="stop"
       :addScores="addScores"
-      :scores="scores"
     />
-
-    <div>Scores: {{ scores }}</div>
 
     <button id="play-btn" v-on:click="isPlaying ? stop() : start()">
       {{ isPlaying ? "Stop" : "Play" }}
@@ -46,20 +43,15 @@ export default {
       cellSize: 20,
       boardSize: 40,
       speed: 12,
-      scores: 0,
       isPlaying: false,
     };
   },
   methods: {
     start() {
       this.isPlaying = true;
-      this.scores = 0;
     },
     stop() {
       this.isPlaying = false;
-    },
-    addScores(scores) {
-      this.scores += scores;
     },
   },
 };
@@ -76,6 +68,7 @@ body {
   justify-content: center;
   height: 100vh;
   overflow: hidden;
+  position: relative;
 }
 
 #app {

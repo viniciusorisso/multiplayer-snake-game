@@ -5,6 +5,10 @@
       :width="boardSizePx"
       :height="boardSizePx"
     ></canvas>
+    {{ gameScores.length }}
+    <div class="scores" v-if="gameScores.length > 0">
+      Scores: {{ gameScores[0] }}
+    </div>
   </div>
 </template>
 
@@ -107,6 +111,9 @@ export default {
     return {
       userToken: null,
       userId: "risso",
+      socket: null,
+      showGameScore: false,
+      gameScores: [],
     };
   },
   computed: {
@@ -125,11 +132,23 @@ export default {
       console.log(error);
     }
     // eslint-disable-next-line no-undef
-    let socket = io("http://localhost:3000");
-    socket.onmessage = function () {
-      console.log("juao");
-    };
-    socket.send("joao", "sas");
+    this.socket = io("http://localhost:3000");
+
+    this.socket.on("mapState", (mapState) => {
+      board.clear();
+      for (const [key, snake] of Object.entries(mapState.snakes)) {
+        const isMainPlayer = key === this.userId;
+        board.drawSnake(snake.vertebraes, isMainPlayer);
+      }
+      mapState.targetCells.forEach((target) => {
+        board.drawTarget(target);
+      });
+    });
+
+    this.socket.on("gameFinished", () => {
+      console.log("joao 20cm");
+      this.gameScores = [10, 20];
+    });
   },
   mounted() {
     board = new MapGrid(
@@ -174,36 +193,13 @@ export default {
     async sendKeyPressedToSocket(keyPress) {
       if (!board.running) await this.startGame();
 
-      const body = JSON.stringify({
+      const body = {
         lobbyId: this.lobbyId,
         userId: this.userId,
         userMovement: keyPress,
-      });
+      };
 
-      let mapState = null;
-
-      try {
-        const response = await fetch("http://localhost:3000/player", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: body,
-        });
-        const jsonParsed = await response.json();
-        mapState = jsonParsed.data.mapState;
-      } catch (error) {
-        console.log(error);
-      } finally {
-        board.clear();
-        for (const [key, snake] of Object.entries(mapState.snakes)) {
-          const isMainPlayer = key === this.userId;
-          board.drawSnake(snake.vertebraes, isMainPlayer);
-        }
-        mapState.targetCells.forEach((target) => {
-          board.drawTarget(target);
-        });
-      }
+      this.socket.emit("move", body);
     },
   },
 };
@@ -214,5 +210,15 @@ export default {
   border: 1px solid #ccc;
   margin: 10px 0;
   height: 100%;
+}
+
+.scores {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 300px;
+  height: 300px;
+  background-color: blue;
 }
 </style>

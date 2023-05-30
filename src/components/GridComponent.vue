@@ -1,16 +1,14 @@
 <template>
   <div>
-    <p v-if="board">
-      {{ board.getSnakePos() }}
-    </p>
-    <p v-if="board">
-      {{ board.getTargetPos() }}
-    </p>
     <canvas
       id="snake-canvas"
       :width="boardSizePx"
       :height="boardSizePx"
     ></canvas>
+    {{ gameScores.length }}
+    <div class="scores" v-if="gameScores.length > 0">
+      Scores: {{ gameScores[0] }}
+    </div>
   </div>
 </template>
 
@@ -31,42 +29,9 @@ class Coordenates {
   }
 }
 
-class Snake {
-  vertebraes;
-  direction;
-  constructor(mapMiddleCell = 0) {
-    this.vertebraes = [];
-    this.vertebraes.unshift(new Coordenates(mapMiddleCell.x, mapMiddleCell.y));
-    const randomDirectionIndex = Math.floor(Math.random() * 4);
-    this.direction = constants[randomDirectionIndex];
-  }
-  get tail() {
-    return this.vertebraes[0];
-  }
-  get size() {
-    return this.vertebraes.length;
-  }
-  amountCellsInSnake(targetCell = null) {
-    let cell = targetCell ?? this.tail;
-    return this.vertebraes.filter(({ x, y }) => x === cell.x && y === cell.y)
-      .length;
-  }
-  newHead({ x, y }) {
-    const newHeadCell = new Coordenates(x, y);
-
-    this.vertebraes.unshift(newHeadCell);
-  }
-  lostTail(foodCoord) {
-    this.vertebraes.unshift(foodCoord);
-    this.vertebraes.pop();
-  }
-}
-
 class MapGrid extends Canvas {
   boardSize;
   boardSizePx;
-  targetCell;
-  snake;
   running;
   cellSize;
   speed;
@@ -74,11 +39,10 @@ class MapGrid extends Canvas {
     super();
     this.boardSize = new Coordenates(boardSize, boardSize);
     this.boardSizePx = boardSizePx;
-    this.targetCell = null;
-    this.snake = null;
     this.running = false;
     this.cellSize = cellSize;
     this.speed = speed;
+    this.startGame = this.startGame.bind(this);
   }
   clear() {
     this.context.clearRect(0, 0, this.boardSizePx, this.boardSizePx);
@@ -89,41 +53,11 @@ class MapGrid extends Canvas {
 
     return new Coordenates(middleX, middleY);
   }
-  newSnake() {
-    const middleCell = this.middleCell();
-    this.snake = new Snake(middleCell);
-    this.targetCell = null;
-  }
-  generateRandomTargetCell() {
-    if (!this.targetCell) {
-      let targetCell = this.getRandomCell();
-      while (this.snake.amountCellsInSnake(targetCell) > 0) {
-        targetCell = this.getRandomCell;
-      }
-      this.targetCell = targetCell;
-    }
-
-    this.context.beginPath();
-    this.context.rect(
-      this.targetCell.x * this.cellSize,
-      this.targetCell.y * this.cellSize,
-      this.cellSize,
-      this.cellSize
-    );
-    this.context.fillStyle = "red";
-    this.context.fill();
-    this.context.closePath();
-  }
-  getRandomCell() {
-    return new Coordenates(
-      Math.floor(Math.random() * this.boardSize.x),
-      Math.floor(Math.random() * this.boardSize.y)
-    );
-  }
   /**
-   * @param {Coordenates}
+   * @param {Coordenates} vertebraes
+   * @param {boolean} isMainPlayer
    */
-  drawCell(vertebraes) {
+  drawSnake(vertebraes, isMainPlayer) {
     let board = this.context;
     vertebraes.forEach(({ x, y }) => {
       board.rect(
@@ -132,93 +66,36 @@ class MapGrid extends Canvas {
         this.cellSize,
         this.cellSize
       );
-      board.fillStyle = "black";
+      board.fillStyle = isMainPlayer ? "black" : "blue";
       board.fill();
     });
-  }
-  /**
-   * @param {Coordenates} snakeTail
-   */
-  isTargetNewHead({ x, y }) {
-    let condition =
-      x + this.snake.direction.move.x === this.targetCell.x &&
-      y + this.snake.direction.move.y === this.targetCell.y;
-    return condition;
-  }
-  /**
-   * @param {Coordenates} cell
-   */
-  isCellOutOfBoard({ x, y }) {
-    return x < 0 || y < 0 || x >= this.boardSize.x || y >= this.boardSize.y;
   }
   getMoveDelay() {
     return (2 / Number(this.speed)) * 1000;
   }
   startGame() {
     this.running = true;
-    this.newSnake();
-    this.move();
+    // socket init
   }
-  move() {
-    if (!this.running) {
-      return;
-    }
-
-    this.clear();
-    this.generateRandomTargetCell();
-
-    const newHeadCell = new Coordenates(
-      this.snake.tail.x + this.snake.direction.move.x,
-      this.snake.tail.y + this.snake.direction.move.y
-    );
-
-    if (
-      this.isCellOutOfBoard(newHeadCell) ||
-      this.snake.amountCellsInSnake() > 1
-    ) {
-      this.stop();
-      alert(`Game over! You've scored ${this.scores} points.`);
-      return;
-    }
-
-    if (this.isTargetNewHead(this.snake.tail)) {
-      this.snake.newHead(this.targetCell);
-      this.targetCell = null;
-      // this.addScores(this.speed);
-    } else {
-      this.snake.lostTail(newHeadCell);
-    }
-
+  drawTarget(target) {
     this.context.beginPath();
-    this.drawCell(this.snake.vertebraes);
+    this.context.rect(
+      target.x * this.cellSize,
+      target.y * this.cellSize,
+      this.cellSize,
+      this.cellSize
+    );
+    this.context.fillStyle = "red";
+    this.context.fill();
     this.context.closePath();
-
-    setTimeout(() => this.move(), this.getMoveDelay());
   }
-
-  onKeyPress(newDirection) {
-    if (!this.running) return;
-
-    if (Math.abs(newDirection.keyCode - this.snake.direction.keyCode) !== 2) {
-      this.snake.direction = newDirection;
-    }
-  }
-
   stop() {
     this.running = false;
-    this.snake = null;
-    this.targetCell = null;
     this.clear();
   }
-
-  getSnakePos() {
-    return this.snake?.tail ?? "";
-  }
-
-  getTargetPos() {
-    return this.targetCell ?? "";
-  }
 }
+
+let board = null;
 
 export default {
   name: "SnakeCanvas",
@@ -232,7 +109,11 @@ export default {
   },
   data() {
     return {
-      board: null,
+      userToken: null,
+      userId: "risso",
+      socket: null,
+      showGameScore: false,
+      gameScores: [],
     };
   },
   computed: {
@@ -240,8 +121,37 @@ export default {
       return this.cellSize * this.boardSize;
     },
   },
+  async created() {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/login/${this.userId}`
+      );
+      const jsonParsed = await response.json();
+      this.lobbyId = jsonParsed.data.lobbyId;
+    } catch (error) {
+      console.log(error);
+    }
+    // eslint-disable-next-line no-undef
+    this.socket = io("http://localhost:3000");
+
+    this.socket.on("mapState", (mapState) => {
+      board.clear();
+      for (const [key, snake] of Object.entries(mapState.snakes)) {
+        const isMainPlayer = key === this.userId;
+        board.drawSnake(snake.vertebraes, isMainPlayer);
+      }
+      mapState.targetCells.forEach((target) => {
+        board.drawTarget(target);
+      });
+    });
+
+    this.socket.on("gameFinished", () => {
+      console.log("joao 20cm");
+      this.gameScores = [10, 20];
+    });
+  },
   mounted() {
-    this.board = new MapGrid(
+    board = new MapGrid(
       this.boardSize,
       this.boardSizePx,
       this.cellSize,
@@ -250,14 +160,14 @@ export default {
     window.addEventListener("keydown", this.onKeyPress);
   },
   beforeUnmount() {
-    this.board = null;
+    board = null;
     window.removeEventListener("keydown", this.onKeyPress);
   },
   watch: {
     isPlaying(value) {
-      this.board.stop();
+      board.stop();
       if (value) {
-        this.board.startGame();
+        board.startGame();
       }
     },
   },
@@ -269,7 +179,27 @@ export default {
         return;
       }
 
-      this.board.onKeyPress(newDirection);
+      this.sendKeyPressedToSocket(newDirection.direction);
+    },
+    async startGame() {
+      try {
+        await fetch(`http://localhost:3000/${this.lobbyId}/start`);
+      } catch (error) {
+        console.log(error);
+      } finally {
+        board.startGame();
+      }
+    },
+    async sendKeyPressedToSocket(keyPress) {
+      if (!board.running) await this.startGame();
+
+      const body = {
+        lobbyId: this.lobbyId,
+        userId: this.userId,
+        userMovement: keyPress,
+      };
+
+      this.socket.emit("move", body);
     },
   },
 };
@@ -280,5 +210,15 @@ export default {
   border: 1px solid #ccc;
   margin: 10px 0;
   height: 100%;
+}
+
+.scores {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 300px;
+  height: 300px;
+  background-color: blue;
 }
 </style>

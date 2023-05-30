@@ -24,7 +24,7 @@ export default [
     },
   },
   {
-    direction: "bottom",
+    direction: "down",
     keyCode: 40,
     move: {
       x: 0,
